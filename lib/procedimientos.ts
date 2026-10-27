@@ -4,6 +4,8 @@
 // La app arma el formulario y la llamada a partir de esta lista: nombres de función, parámetros y SQL
 // son fijos; los valores siempre viajan como parámetros ($1, $2…).
 
+import { CLAVE, POR_SEXO, TRAYECTORIA } from "./trayectoria";
+
 export type TipoParam = "texto" | "numero" | "fecha" | "booleano" | "carrera" | "ciclo" | "opcion";
 
 export type Param = {
@@ -37,7 +39,8 @@ export const GRUPOS = [
   "Planes de estudio",
   "Docentes",
   "Becas, servicio y titulación",
-  "SEP y estadística",
+  "SEP · Formato 911",
+  "SEP · Relaciones y control escolar",
   "Evaluación docente",
 ] as const;
 
@@ -382,21 +385,262 @@ ORDER BY 1, 3 DESC`,
     ],
   },
 
-  // ------------------------------------------------------------------ SEP y estadística
+  // ------------------------------------------------------------------ SEP · Formato 911
+  // Cuestionario estadístico 911 de educación superior (inicio y fin de cursos): matrícula, primer
+  // ingreso, edad, egresados y personal docente, todo por sexo. En el ciclo escolar anual (ago–jul)
+  // la matrícula de inicio de cursos es la del ciclo -1.
   {
-    id: "layout-sep", funcion: "sp_layout_sep", grupo: "SEP y estadística",
-    titulo: "Concentrado para la SEP",
+    id: "f911-matricula", grupo: "SEP · Formato 911",
+    titulo: "Matrícula por carrera, semestre y sexo",
+    descripcion: "Alumnos con materias en el ciclo, por carrera y semestre, separados en hombres y mujeres, con su primer ingreso.",
+    ayuda: "Para el 911 de inicio de cursos elige el ciclo -1 (agosto). «Primer ingreso» son los alumnos cuyo primer ciclo es este. Agrupa por «carrera» y suma las columnas para el total por licenciatura. «Sexo sin dato» son alumnos que el sistema anterior no tiene capturados.",
+    params: [{ ...ciclo, requerido: true, ejemplo: "24-1" }, carrera],
+    sql: `WITH m AS (
+  SELECT i.alumno_id, max(i.semestre) AS semestre
+  FROM inscripcion_materia i JOIN ciclos_escolares c ON c.id = i.ciclo_id
+  WHERE c.clave = $1::text AND i.fecha_baja IS NULL
+  GROUP BY i.alumno_id
+), p AS (
+  SELECT i.alumno_id, min(fn_ciclo_orden(c.clave)) AS o_ini
+  FROM inscripcion_materia i JOIN ciclos_escolares c ON c.id = i.ciclo_id
+  WHERE c.clave ~ '^\\d\\d-[12]$' AND i.alumno_id IN (SELECT alumno_id FROM m)
+  GROUP BY i.alumno_id
+)
+SELECT ca.clave AS carrera, ca.nombre AS nombre_carrera, ca.rvoe, m.semestre,
+       ${POR_SEXO()},
+       count(*) FILTER (WHERE p.o_ini = fn_ciclo_orden($1::text)) AS primer_ingreso,
+       count(*) FILTER (WHERE p.o_ini = fn_ciclo_orden($1::text) AND a.sexo = 'hombre') AS primer_ingreso_hombres,
+       count(*) FILTER (WHERE p.o_ini = fn_ciclo_orden($1::text) AND a.sexo = 'mujer') AS primer_ingreso_mujeres
+FROM m
+JOIN alumnos a ON a.id = m.alumno_id
+JOIN carreras ca ON ca.id = a.carrera_id
+LEFT JOIN p ON p.alumno_id = m.alumno_id
+WHERE ($2::text IS NULL OR ca.clave = $2)
+GROUP BY ca.id, m.semestre
+ORDER BY ca.clave, m.semestre`,
+    agruparSugerido: ["carrera"],
+    vista: { tipo: "barras", x: "carrera", y: "total" },
+  },
+  {
+    id: "f911-edad", grupo: "SEP · Formato 911",
+    titulo: "Matrícula por edad y sexo",
+    descripcion: "Alumnos del ciclo por edad cumplida al 1 de septiembre, en los rangos del 911.",
+    ayuda: "La edad se calcula al 1 de septiembre del año en que empieza el ciclo escolar (24-1 y 24-2 → 1-sep-2023). «Sin dato» son alumnos sin fecha de nacimiento capturada.",
+    params: [{ ...ciclo, requerido: true, ejemplo: "24-1" }, carrera],
+    sql: `WITH m AS (
+  SELECT DISTINCT i.alumno_id
+  FROM inscripcion_materia i JOIN ciclos_escolares c ON c.id = i.ciclo_id
+  WHERE c.clave = $1::text AND i.fecha_baja IS NULL
+), e AS (
+  SELECT a.sexo, ca.clave AS carrera,
+         extract(year FROM age(make_date(fn_ciclo_orden($1::text) / 10 - 1, 9, 1), a.fecha_nacimiento))::int AS edad
+  FROM m JOIN alumnos a ON a.id = m.alumno_id JOIN carreras ca ON ca.id = a.carrera_id
+  WHERE ($2::text IS NULL OR ca.clave = $2)
+)
+SELECT CASE WHEN edad IS NULL THEN 'Sin dato' WHEN edad <= 17 THEN '17 o menos' WHEN edad <= 29 THEN edad::text
+            WHEN edad <= 34 THEN '30 a 34' WHEN edad <= 39 THEN '35 a 39' ELSE '40 o más' END AS rango_edad,
+       ${POR_SEXO("sexo")}
+FROM e
+GROUP BY 1
+ORDER BY min(coalesce(edad, 999))`,
+    vista: { tipo: "barras", x: "rango_edad", y: "total" },
+  },
+  {
+    id: "f911-egresados", grupo: "SEP · Formato 911",
+    titulo: "Egresados por carrera y sexo",
+    descripcion: "Alumnos que terminaron su plan en el ciclo (su último ciclo con materias), con cuántos ya están titulados.",
+    ayuda: "El sistema anterior no registra el egreso: se considera egresado a quien cursó el último semestre de su plan (o está titulado) y ya no se inscribió después. Para el 911 suma el ciclo -1 y el -2 del ciclo escolar. Los titulados no se pueden contar por ciclo porque no hay fecha de titulación.",
+    params: [{ ...ciclo, requerido: true, ejemplo: "24-1" }, carrera],
+    sql: `WITH ${TRAYECTORIA}
+SELECT ca.clave AS carrera, ca.nombre AS nombre_carrera, ca.rvoe,
+       ${POR_SEXO("t.sexo")},
+       count(*) FILTER (WHERE t.titulado) AS de_ellos_titulados
+FROM tray t JOIN carreras ca ON ca.id = t.carrera_id
+WHERE t.egresado AND t.o_fin = fn_ciclo_orden($1::text) AND ($2::text IS NULL OR ca.clave = $2)
+GROUP BY ca.id
+ORDER BY ca.clave`,
+    vista: { tipo: "barras", x: "carrera", y: "total" },
+  },
+  {
+    id: "f911-docentes", grupo: "SEP · Formato 911",
+    titulo: "Personal docente del ciclo",
+    descripcion: "Docentes que dieron clase en el ciclo, con sexo, grado académico, carreras, materias y alumnos.",
+    ayuda: "Agrupa por «sexo» o por «grado académico» para los totales del 911. Hoy salen «sin dato» porque el sistema anterior no captura el sexo ni el grado de los docentes: es un dato a completar en el sistema nuevo.",
+    params: [{ ...ciclo, requerido: true, ejemplo: "24-1" }, carrera],
+    sql: `SELECT d.clave, fn_nombre_completo(d.nombre, d.apellido_1, d.apellido_2) AS docente,
+       coalesce(d.sexo, 'sin dato') AS sexo, coalesce(d.grado_academico, 'sin dato') AS grado_academico,
+       string_agg(DISTINCT ca.clave, ', ' ORDER BY ca.clave) AS carreras,
+       count(DISTINCT i.materia_id) AS materias, count(DISTINCT i.alumno_id) AS alumnos
+FROM inscripcion_materia i
+JOIN docentes d ON d.id = i.docente_id
+JOIN ciclos_escolares c ON c.id = i.ciclo_id
+JOIN materias m ON m.id = i.materia_id
+JOIN carreras ca ON ca.id = m.carrera_id
+WHERE c.clave = $1::text AND i.fecha_baja IS NULL AND ($2::text IS NULL OR ca.clave = $2)
+GROUP BY d.id
+ORDER BY docente`,
+    agruparSugerido: ["sexo", "grado_academico"],
+    vista: { tipo: "barras", x: "docente", y: "alumnos" },
+  },
+  {
+    id: "estadistica", funcion: "sp_estadistica_alumnos", grupo: "SEP · Formato 911",
+    titulo: "Alumnos por discapacidad y lengua indígena",
+    descripcion: "Conteo y promedio por carrera, sexo, edad, discapacidad y lengua indígena.",
+    ayuda: "Cada fila es una combinación; agrupa por «sexo» o «rango_edad» y suma la columna «alumnos» para los totales que pide la SEP. Discapacidad y lengua indígena salen vacías hasta que se capturen en el sistema nuevo (el anterior no las registra).",
+    params: [carrera, ciclo, { nombre: "p_solo_activos", etiqueta: "Solo activos", tipo: "booleano" }],
+    agruparSugerido: ["sexo"],
+  },
+
+  // ------------------------------------------------------------------ SEP · Relaciones y control escolar
+  {
+    id: "relacion-inscripcion", grupo: "SEP · Relaciones y control escolar",
+    titulo: "Relación de inscripción y reinscripción",
+    descripcion: "Lista oficial de alumnos del ciclo con CURP, datos personales, semestre, grupo y si son de nuevo ingreso o reingreso.",
+    ayuda: "Es la relación que se entrega al inicio de cada ciclo. Exporta a Excel y filtra por «tipo de ingreso» para separar nuevo ingreso y reingreso. Las columnas vacías (CURP, sexo) son datos que el sistema anterior no tiene.",
+    params: [{ ...ciclo, requerido: true, ejemplo: "24-1" }, carrera],
+    sql: `WITH m AS (
+  SELECT i.alumno_id, max(i.semestre) AS semestre, count(*) AS materias_inscritas,
+         string_agg(DISTINCT i.grupo, ', ') AS grupo
+  FROM inscripcion_materia i JOIN ciclos_escolares c ON c.id = i.ciclo_id
+  WHERE c.clave = $1::text AND i.fecha_baja IS NULL
+  GROUP BY i.alumno_id
+), p AS (
+  SELECT i.alumno_id, min(fn_ciclo_orden(c.clave)) AS o_ini
+  FROM inscripcion_materia i JOIN ciclos_escolares c ON c.id = i.ciclo_id
+  WHERE c.clave ~ '^\\d\\d-[12]$' AND i.alumno_id IN (SELECT alumno_id FROM m)
+  GROUP BY i.alumno_id
+)
+SELECT ca.clave AS carrera, ca.rvoe, a.numerocuenta, a.curp, a.apellido_1, a.apellido_2, a.nombre, a.sexo,
+       a.fecha_nacimiento, m.semestre, m.grupo,
+       CASE WHEN p.o_ini = fn_ciclo_orden($1::text) THEN 'Nuevo ingreso' ELSE 'Reingreso' END AS tipo_ingreso,
+       m.materias_inscritas
+FROM m
+JOIN alumnos a ON a.id = m.alumno_id
+JOIN carreras ca ON ca.id = a.carrera_id
+LEFT JOIN p ON p.alumno_id = m.alumno_id
+WHERE ($2::text IS NULL OR ca.clave = $2)
+ORDER BY ca.clave, m.semestre, a.apellido_1, a.apellido_2, a.nombre`,
+    agruparSugerido: ["carrera", "tipo_ingreso"],
+  },
+  {
+    id: "relacion-bajas", grupo: "SEP · Relaciones y control escolar",
+    titulo: "Alumnos que no se reinscribieron",
+    descripcion: "Alumnos cuyo último ciclo fue el elegido, sin haber egresado: bajas y deserción.",
+    ayuda: "El sistema anterior no registra las bajas de los alumnos: aquí aparecen quienes cursaron este ciclo y ya no se inscribieron al siguiente, sin haber terminado el plan. Sirve para el reporte de bajas y para el seguimiento de deserción. El ciclo más reciente no aplica (todavía no hay ciclo siguiente).",
+    params: [{ ...ciclo, requerido: true, ejemplo: "24-1" }, carrera],
+    sql: `WITH ${TRAYECTORIA}
+SELECT ca.clave AS carrera, a.numerocuenta, fn_nombre_completo(a.nombre, a.apellido_1, a.apellido_2) AS alumno, a.sexo,
+       ${CLAVE("t.o_ini")} AS ciclo_ingreso, t.sem_max AS semestre_alcanzado,
+       (SELECT count(DISTINCT i.materia_id) FROM inscripcion_materia i
+         WHERE i.alumno_id = t.alumno_id AND i.aprobada IS FALSE
+           AND NOT EXISTS (SELECT 1 FROM v_materias_acreditadas v WHERE v.alumno_id = i.alumno_id AND v.materia_id = i.materia_id)
+       ) AS materias_no_acreditadas,
+       (SELECT round(avg(i.calificacion_final), 2) FROM inscripcion_materia i
+         WHERE i.alumno_id = t.alumno_id AND i.calificacion_final IS NOT NULL AND i.fecha_baja IS NULL) AS promedio
+FROM tray t
+JOIN alumnos a ON a.id = t.alumno_id
+JOIN carreras ca ON ca.id = t.carrera_id
+CROSS JOIN ciclos_ref r
+WHERE NOT t.egresado AND t.o_fin = fn_ciclo_orden($1::text) AND t.o_fin < r.ultimo
+  AND ($2::text IS NULL OR ca.clave = $2)
+ORDER BY ca.clave, t.sem_max, alumno`,
+    agruparSugerido: ["carrera", "semestre_alcanzado"],
+    vista: { tipo: "barras", x: "semestre_alcanzado", y: "registros" },
+  },
+  {
+    id: "relacion-egresados", grupo: "SEP · Relaciones y control escolar",
+    titulo: "Relación de egresados",
+    descripcion: "Alumnos que terminaron el plan, con generación, ciclos de ingreso y egreso, materias acreditadas y promedio general.",
+    ayuda: "Base para certificados totales y para el seguimiento de egresados. Deja el ciclo vacío para todos, o elige el ciclo de egreso. «Promedio general» es el de las materias acreditadas.",
+    params: [ciclo, carrera],
+    sql: `WITH ${TRAYECTORIA}
+SELECT ca.clave AS carrera, ca.rvoe, a.numerocuenta, a.curp, a.apellido_1, a.apellido_2, a.nombre, a.sexo,
+       t.generacion, ${CLAVE("t.o_ini")} AS ciclo_ingreso, ${CLAVE("t.o_fin")} AS ciclo_egreso,
+       (SELECT count(*) FROM v_materias_acreditadas v WHERE v.alumno_id = t.alumno_id) AS materias_acreditadas,
+       (SELECT round(avg(i.calificacion_final), 2) FROM inscripcion_materia i
+         WHERE i.alumno_id = t.alumno_id AND i.aprobada AND i.fecha_baja IS NULL) AS promedio_general,
+       t.titulado
+FROM tray t
+JOIN alumnos a ON a.id = t.alumno_id
+JOIN carreras ca ON ca.id = t.carrera_id
+WHERE t.egresado AND ($1::text IS NULL OR t.o_fin = fn_ciclo_orden($1::text)) AND ($2::text IS NULL OR ca.clave = $2)
+ORDER BY t.o_fin DESC, ca.clave, a.apellido_1, a.apellido_2, a.nombre`,
+    agruparSugerido: ["generacion"],
+    vista: { tipo: "barras", x: "generacion", y: "registros" },
+  },
+  {
+    id: "relacion-titulados", grupo: "SEP · Relaciones y control escolar",
+    titulo: "Relación de titulados",
+    descripcion: "Titulados con CURP, generación, modalidad de titulación, estatus de cédula y promedio general.",
+    ayuda: "Base para el registro de títulos y cédulas. La fecha de titulación y el estatus de la cédula se capturan en el sistema nuevo; en lo migrado vienen vacíos.",
+    params: [carrera],
+    sql: `WITH ${TRAYECTORIA}
+SELECT ca.clave AS carrera, ca.rvoe, a.numerocuenta, a.curp, a.apellido_1, a.apellido_2, a.nombre, a.sexo,
+       t.generacion, ti.tipo_titulacion AS modalidad, ti.fecha_titulacion, ti.cedula_estatus,
+       (SELECT round(avg(i.calificacion_final), 2) FROM inscripcion_materia i
+         WHERE i.alumno_id = a.id AND i.aprobada AND i.fecha_baja IS NULL) AS promedio_general
+FROM alumnos a
+JOIN carreras ca ON ca.id = a.carrera_id
+LEFT JOIN tray t ON t.alumno_id = a.id
+LEFT JOIN titulacion ti ON ti.alumno_id = a.id
+WHERE a.titulado AND ($1::text IS NULL OR ca.clave = $1)
+ORDER BY ca.clave, a.apellido_1, a.apellido_2, a.nombre`,
+    agruparSugerido: ["carrera", "modalidad"],
+    vista: { tipo: "barras", x: "generacion", y: "registros" },
+  },
+  {
+    id: "eficiencia-terminal", grupo: "SEP · Relaciones y control escolar",
+    titulo: "Eficiencia terminal por generación",
+    descripcion: "De los que ingresaron cada año: cuántos egresaron, se titularon, siguen estudiando o dejaron de inscribirse.",
+    ayuda: "Eficiencia terminal = egresados ÷ ingreso de la generación; % titulación = titulados ÷ ingreso. Las generaciones de los últimos 5 años todavía están estudiando, así que sus porcentajes aún van a subir. Lo piden la SEP, los organismos acreditadores (COPAES) y rectoría.",
+    params: [carrera],
+    sql: `WITH ${TRAYECTORIA}
+SELECT t.generacion, count(*) AS ingreso,
+       count(*) FILTER (WHERE t.egresado) AS egresados,
+       count(*) FILTER (WHERE t.situacion = 'Titulados') AS titulados,
+       count(*) FILTER (WHERE t.situacion = 'Egresados sin título') AS egresados_sin_titulo,
+       count(*) FILTER (WHERE t.situacion = 'Siguen estudiando') AS siguen_estudiando,
+       count(*) FILTER (WHERE t.situacion = 'Dejaron de inscribirse') AS dejaron_de_inscribirse,
+       round(100.0 * count(*) FILTER (WHERE t.egresado) / count(*), 1) AS eficiencia_terminal,
+       round(100.0 * count(*) FILTER (WHERE t.titulado) / count(*), 1) AS pct_titulacion
+FROM tray t JOIN carreras ca ON ca.id = t.carrera_id
+WHERE t.generacion >= 2001 AND ($1::text IS NULL OR ca.clave = $1)
+GROUP BY t.generacion
+ORDER BY t.generacion`,
+    vista: { tipo: "linea", x: "generacion", y: "eficiencia_terminal" },
+  },
+  {
+    id: "datos-faltantes", grupo: "SEP · Relaciones y control escolar",
+    titulo: "Datos faltantes para la SEP",
+    descripcion: "Por carrera: cuántos alumnos no tienen CURP, sexo, fecha de nacimiento o lengua indígena, y cuántas materias no tienen clave SEP.",
+    ayuda: "Muestra qué hay que completar antes de entregar los formatos. Sin ciclo cuenta a los alumnos activos; con ciclo, a los inscritos en él. La CURP es el dato más incompleto del sistema anterior.",
+    params: [ciclo],
+    sql: `WITH al AS (
+  SELECT a.* FROM alumnos a
+  WHERE ($1::text IS NULL AND a.activo)
+     OR EXISTS (SELECT 1 FROM inscripcion_materia i JOIN ciclos_escolares c ON c.id = i.ciclo_id
+                WHERE i.alumno_id = a.id AND c.clave = $1::text)
+)
+SELECT ca.clave AS carrera, ca.nombre AS nombre_carrera, count(al.id) AS alumnos,
+       count(al.id) FILTER (WHERE al.curp IS NULL) AS sin_curp,
+       count(al.id) FILTER (WHERE al.sexo IS NULL) AS sin_sexo,
+       count(al.id) FILTER (WHERE al.fecha_nacimiento IS NULL) AS sin_fecha_nacimiento,
+       count(al.id) FILTER (WHERE al.habla_lengua_indigena IS NULL) AS sin_lengua_indigena,
+       round(100.0 * count(al.id) FILTER (WHERE al.curp IS NOT NULL AND al.sexo IS NOT NULL AND al.fecha_nacimiento IS NOT NULL)
+             / nullif(count(al.id), 0), 1) AS pct_completos,
+       (SELECT count(*) FROM materias m WHERE m.carrera_id = ca.id AND m.activo AND m.clave_sep IS NULL) AS materias_sin_clave_sep
+FROM carreras ca
+JOIN al ON al.carrera_id = ca.id
+GROUP BY ca.id
+ORDER BY ca.clave`,
+    vista: { tipo: "barras", x: "carrera", y: "sin_curp" },
+  },
+  {
+    id: "layout-sep", funcion: "sp_layout_sep", grupo: "SEP · Relaciones y control escolar",
+    titulo: "Concentrado de calificaciones para la SEP",
     descripcion: "Alumnos y materias con calificación, con la clave SEP de cada materia.",
     ayuda: "La columna «clave_sep» está vacía hasta que UNIMES envíe las claves SEP de las materias. Exporta a Excel para entregarlo.",
     params: [carrera, ciclo],
-  },
-  {
-    id: "estadistica", funcion: "sp_estadistica_alumnos", grupo: "SEP y estadística",
-    titulo: "Estadística de alumnos",
-    descripcion: "Conteo y promedio por carrera, sexo, edad, discapacidad y lengua indígena.",
-    ayuda: "Cada fila es una combinación; agrupa por «sexo» o «rango_edad» y suma la columna «alumnos» para los totales que pide la SEP.",
-    params: [carrera, ciclo, { nombre: "p_solo_activos", etiqueta: "Solo activos", tipo: "booleano" }],
-    agruparSugerido: ["sexo"],
   },
 
   // ------------------------------------------------------------------ Evaluación docente

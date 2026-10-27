@@ -4,9 +4,12 @@ Demo web de la nueva base de datos de Control Escolar del plantel San Luis Potos
 sistema completo puede hacer con los datos migrados del sistema anterior.
 
 - **Inicio**: cifras generales, alumnos por ciclo (gráfica) y por carrera.
+- **Tablero**: indicadores para rectoría (matrícula, nuevo ingreso, reprobación, eficiencia terminal, titulación y
+  deserción por generación), con filtro por licenciatura e impresión a PDF.
 - **Alumnos**: búsqueda y ficha con promedios (gráfica) y kárdex.
-- **Reportes**: 26 reportes por tema (procedimientos almacenados y consultas de solo lectura), cada uno con su
-  explicación, filtros con menús de búsqueda y vista sugerida.
+- **Reportes**: 36 reportes por tema (procedimientos almacenados y consultas de solo lectura), entre ellos el
+  formato 911 y las relaciones para la SEP (inscripción, bajas, egresados, titulados, eficiencia terminal, datos
+  faltantes). Cada uno con su explicación, filtros con menús de búsqueda y vista sugerida.
 - **Consola SQL**: consultas libres en una transacción de solo lectura (una instrucción, 15 s), con ejemplos.
 - **Guía**: cómo usar cada menú, agrupar, graficar y exportar, y un glosario.
 - **Operaciones**: inhabilitadas por ahora (`lib/config.ts`); la demo es solo de consulta y exportación.

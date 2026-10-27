@@ -68,11 +68,14 @@ export async function GET(request: Request) {
   hoja.columns = r.columnas.map((c) => {
     const largo = Math.max(etiqueta(c).length, ...r.filas.slice(0, 300).map((f) => String(f[c] ?? "").length));
     const tipo = r.tipos[c];
+    // Enteros sin decimales; años, semestres y claves numéricas sin separador de miles.
+    const enteros = r.filas.every((f) => f[c] === null || f[c] === undefined || Number.isInteger(Number(f[c])));
+    const formato = /anio|semestre|generacion|lugar|^id$|_id$/.test(c) ? "0" : enteros ? "#,##0" : "#,##0.00";
     return {
       header: etiqueta(c),
       key: c,
       width: Math.min(Math.max(largo + 2, 8), 60),
-      style: tipo === "fecha" ? { numFmt: "dd/mm/yyyy" } : tipo === "numero" ? { numFmt: "#,##0.##" } : {},
+      style: tipo === "fecha" ? { numFmt: "dd/mm/yyyy" } : tipo === "numero" ? { numFmt: formato } : {},
     };
   });
   for (const f of r.filas) {

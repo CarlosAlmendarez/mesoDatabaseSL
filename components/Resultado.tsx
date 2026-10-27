@@ -12,7 +12,7 @@ import { Grafica, type ConfigGrafica } from "./Grafica";
 
 const NO_GRAFICABLES = /(^id$|_id$|numerocuenta|^clave|curp|registro_id)/;
 
-const SIN_MILES = /(anio|semestre|^id$|_id$|calificacion$|lugar|numero)/;
+const SIN_MILES = /(anio|semestre|^id$|_id$|calificacion$|lugar|numero|generacion)/;
 
 function texto(v: unknown, col = ""): string {
   if (v === null || v === undefined) return "";

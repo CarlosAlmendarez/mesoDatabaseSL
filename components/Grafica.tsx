@@ -3,11 +3,10 @@ import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { etiqueta } from "@/lib/etiquetas";
+import { SERIES } from "@/lib/paleta";
 
 type Fila = Record<string, unknown>;
 
-// Paleta categórica de referencia (validada para daltonismo en orden fijo; nunca se cicla).
-export const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
 const MAX_SERIES = 8;
 const MAX_CATEGORIAS = 30;
 const TINTA = "#52514e";

@@ -3,8 +3,9 @@ import { Titulo } from "@/components/ui";
 
 const MENUS = [
   { href: "/", titulo: "Inicio", texto: "Cifras generales, alumnos por ciclo y por carrera. Clic en una carrera para ver a sus alumnos activos." },
+  { href: "/tablero", titulo: "Tablero", texto: "Indicadores para rectoría: matrícula, nuevo ingreso, reprobación, eficiencia terminal y deserción por generación. Filtra por licenciatura e imprime o guarda en PDF." },
   { href: "/alumnos", titulo: "Alumnos", texto: "Busca por nombre, apellido o matrícula, o filtra por carrera. La matrícula abre la ficha con promedios y kárdex." },
-  { href: "/reportes", titulo: "Reportes", texto: "Consultas listas por tema (becas, reprobación, docentes, titulación, SEP). Cada una explica cómo usarla." },
+  { href: "/reportes", titulo: "Reportes", texto: "Consultas listas por tema, incluidos el formato 911 y las relaciones para la SEP (inscripción, bajas, egresados, titulados). Cada una explica cómo usarla." },
   { href: "/consola", titulo: "Consola SQL", texto: "Para quien sabe SQL: escribe una consulta o carga un ejemplo. Solo lectura." },
 ];
 
@@ -23,6 +24,9 @@ const GLOSARIO: [string, string][] = [
   ["Calificación final", "Entero. Si es 6 o más, sube desde .5 (6.5 → 7); si es menor de 6, baja al entero anterior (5.9 → 5)."],
   ["Forma de aprobación", "Símbolo del sistema anterior: «-» cursada, «/» equivalencia, «Y» regularización, «.» en curso."],
   ["Por clasificar", "Historial anterior a 2001 y exámenes 98-2 a 04-1: pueden ser del plantel de Oaxaca (el sistema se copió de allá). Se conservan marcados."],
+  ["Generación", "Año en que el alumno empezó su primer ciclo. 24-1 empieza en agosto de 2023, así que quien entró en 24-1 es de la generación 2023."],
+  ["Eficiencia terminal", "Egresados de una generación entre los que ingresaron en ella. Egresado: titulado, o cursó el último semestre del plan y ya no se inscribió (el sistema anterior no registra el egreso)."],
+  ["Formato 911", "Cuestionario estadístico de la SEP al inicio y fin de cursos: matrícula, primer ingreso, edad, egresados y docentes, todo por sexo. Está en Reportes → SEP · Formato 911."],
   ["Procedimiento almacenado", "Consulta guardada dentro de la base. Cualquier sistema la llama con un solo comando, por ejemplo SELECT * FROM sp_historial_academico('21102010')."],
 ];
 

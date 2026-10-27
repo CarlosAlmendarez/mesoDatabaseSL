@@ -106,7 +106,7 @@ function Campo({ prm, valor, carreras, ciclos }: { prm: Param; valor?: string; c
   let control: React.ReactNode;
   if (prm.tipo === "carrera" || prm.tipo === "ciclo") {
     control = (
-      <Selector name={prm.nombre} opciones={prm.tipo === "carrera" ? carreras : ciclos} defaultValue={valor ?? ""}
+      <Selector name={prm.nombre} opciones={prm.tipo === "carrera" ? carreras : ciclos} defaultValue={valor ?? prm.ejemplo ?? ""}
         requerido={prm.requerido} vacio={prm.tipo === "carrera" ? "Todas las carreras" : "Todos los ciclos"}
         ancho={prm.tipo === "carrera" ? "w-80" : "w-60"} />
     );

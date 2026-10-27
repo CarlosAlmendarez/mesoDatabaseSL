@@ -4,7 +4,7 @@ import { Enlaces, Nav } from "@/components/Nav";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="bg-brand px-4 py-5 md:w-60 md:shrink-0">
+      <aside className="bg-brand px-4 py-5 md:w-60 md:shrink-0 print:hidden">
         <div className="mb-6 px-3">
           <p className="text-lg font-semibold text-white">UNIMES</p>
           <p className="text-xs text-white/70">Control Escolar · San Luis Potosí</p>
