@@ -1,5 +1,6 @@
 "use server";
 import { exigirSesion } from "@/lib/auth";
+import { OPERACIONES_HABILITADAS } from "@/lib/config";
 import { consultar, simular, type Fila, type Resultado } from "@/lib/db";
 
 export type Inscripcion = {
@@ -12,8 +13,13 @@ export type Inscripcion = {
   estatus: string;
 };
 
+function exigirHabilitadas() {
+  if (!OPERACIONES_HABILITADAS) throw new Error("Las operaciones están inhabilitadas en esta demo.");
+}
+
 export async function inscripcionesDe(cuenta: string): Promise<{ alumno: string | null; filas: Inscripcion[] }> {
   await exigirSesion();
+  exigirHabilitadas();
   const [a] = (
     await consultar(
       "SELECT fn_nombre_completo(nombre, apellido_1, apellido_2) AS alumno, activo FROM alumnos WHERE numerocuenta = $1",
@@ -97,12 +103,13 @@ const COLUMNAS_INSCRIPCION =
 const COLUMNAS_ALUMNO = "SELECT numerocuenta, activo FROM alumnos WHERE numerocuenta = $1";
 
 function tabla(filas: Fila[]): Resultado {
-  return { columnas: filas[0] ? Object.keys(filas[0]) : [], filas };
+  return { columnas: filas[0] ? Object.keys(filas[0]) : [], tipos: {}, filas };
 }
 
 /** Ejecuta la operación dentro de una transacción y la revierte: muestra antes, después y bitácora. */
 export async function simularOperacion(op: Operacion): Promise<ResultadoSimulacion> {
   await exigirSesion();
+  exigirHabilitadas();
   const l = llamadaDe(op);
   const [estado, clave] = op.tipo === "reingreso" ? [COLUMNAS_ALUMNO, op.cuenta.trim()] : [COLUMNAS_INSCRIPCION, op.inscripcion];
   try {

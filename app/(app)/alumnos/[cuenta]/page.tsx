@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { consultar, filas } from "@/lib/db";
-import { Tabla } from "@/components/Tabla";
+import { Resultado } from "@/components/Resultado";
 import { Cargando, Sql } from "@/components/ui";
 
 type Ficha = Record<string, string | boolean | null>;
@@ -82,12 +82,14 @@ async function Detalle({ params }: { params: Promise<{ cuenta: string }> }) {
 
       <section className="space-y-2">
         <h2 className="font-semibold">Promedio por ciclo</h2>
-        <Tabla columnas={promedios.columnas} filas={promedios.filas} archivo={`promedios_${cuenta}`} />
+        <Resultado fuente={{ t: "promedios", cuenta }} inicial={promedios} titulo={`Promedios ${cuenta}`}
+          vista={{ tipo: "linea", x: "ciclo", y: "promedio" }} vistaInicial={promedios.filas.length > 2 ? "grafica" : "tabla"} />
       </section>
 
       <section className="space-y-2">
         <h2 className="font-semibold">Kárdex</h2>
-        <Tabla columnas={kardex.columnas} filas={kardex.filas} archivo={`kardex_${cuenta}`} enlaceMatricula={false} />
+        <Resultado fuente={{ t: "kardex", cuenta }} inicial={kardex} titulo={`Kárdex ${cuenta}`} enlaceMatricula={false}
+          agruparSugerido={["ciclo"]} />
         <Sql>{`SELECT * FROM sp_historial_academico('${cuenta}');`}</Sql>
       </section>
     </div>

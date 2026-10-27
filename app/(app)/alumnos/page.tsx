@@ -1,8 +1,10 @@
 import { Suspense } from "react";
 import { consultar } from "@/lib/db";
 import { carreras } from "@/lib/catalogos";
-import { Tabla } from "@/components/Tabla";
-import { Cargando, Sql, Titulo } from "@/components/ui";
+import { consultaBase, type Fuente } from "@/lib/fuentes";
+import { Resultado } from "@/components/Resultado";
+import { Selector } from "@/components/Selector";
+import { Cargando, Titulo } from "@/components/ui";
 
 type Busqueda = { q?: string; carrera?: string; activo?: string };
 
@@ -11,7 +13,7 @@ export default function Alumnos({ searchParams }: { searchParams: Promise<Busque
     <>
       <Titulo
         titulo="Alumnos"
-        subtitulo="Busca por nombre, apellido o matrícula. Al abrir una matrícula ves su ficha, promedios y kárdex completo."
+        subtitulo="Busca por nombre, apellido o matrícula, o elige una carrera para ver a todos sus alumnos. Al abrir una matrícula ves su ficha, promedios y kárdex completo."
       />
       <Suspense fallback={<Cargando />}>
         <Resultados searchParams={searchParams} />
@@ -24,11 +26,14 @@ async function Resultados({ searchParams }: { searchParams: Promise<Busqueda> })
   const { q = "", carrera = "", activo = "" } = await searchParams;
   const opciones = await carreras();
   const buscar = q.trim() !== "" || carrera !== "" || activo !== "";
-  const llamada =
-    "SELECT * FROM sp_buscar_alumnos(p_texto => $1::text, p_carrera => $2::text, p_activo => $3::boolean)";
-  const r = buscar
-    ? await consultar(llamada, [q.trim() || null, carrera || null, activo === "" ? null : activo === "true"])
-    : null;
+  const fuente: Fuente = { t: "alumnos", q, carrera, activo };
+  const base = consultaBase(fuente);
+  const r = buscar ? await consultar(base.texto, base.params) : null;
+  const filtros: [string, string][] = [
+    ...(q ? [["Nombre o matrícula", q] as [string, string]] : []),
+    ...(carrera ? [["Carrera", carrera] as [string, string]] : []),
+    ...(activo ? [["Estado", activo === "true" ? "Activos" : "Inactivos"] as [string, string]] : []),
+  ];
 
   return (
     <div className="space-y-5">
@@ -39,16 +44,11 @@ async function Resultados({ searchParams }: { searchParams: Promise<Busqueda> })
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Carrera</span>
-          <select name="carrera" defaultValue={carrera} className="rounded-md border border-border px-3 py-2">
-            <option value="">Todas</option>
-            {opciones.map((o) => (
-              <option key={o.valor} value={o.valor}>{o.etiqueta}</option>
-            ))}
-          </select>
+          <Selector name="carrera" opciones={opciones} defaultValue={carrera} vacio="Todas las carreras" ancho="w-80" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Estado</span>
-          <select name="activo" defaultValue={activo} className="rounded-md border border-border px-3 py-2">
+          <select name="activo" defaultValue={activo} className="rounded-md border border-border bg-white px-3 py-2">
             <option value="">Todos</option>
             <option value="true">Activos</option>
             <option value="false">Inactivos</option>
@@ -57,15 +57,10 @@ async function Resultados({ searchParams }: { searchParams: Promise<Busqueda> })
         <button className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white">Buscar</button>
       </form>
       {r ? (
-        <>
-          <Tabla columnas={r.columnas} filas={r.filas} truncado={r.truncado} archivo="alumnos" />
-          <details className="text-sm text-muted">
-            <summary className="cursor-pointer">Ver la llamada a la base</summary>
-            <div className="mt-2"><Sql>{llamada}</Sql></div>
-          </details>
-        </>
+        <Resultado key={JSON.stringify(fuente)} fuente={fuente} inicial={r} titulo="Alumnos" filtros={filtros}
+          agruparSugerido={["carrera"]} />
       ) : (
-        <p className="text-sm text-muted">Escribe un nombre o elige una carrera para buscar.</p>
+        <p className="text-sm text-muted">Escribe un nombre o elige una carrera para buscar. Ejemplo: elige «05 · Derecho» y estado «Activos».</p>
       )}
     </div>
   );

@@ -1,10 +1,22 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { OPERACIONES_HABILITADAS } from "@/lib/config";
 import { filas } from "@/lib/db";
 import { Aviso, Cargando, Titulo } from "@/components/ui";
 import { Simulador } from "./Simulador";
 
 export default function Operaciones() {
+  if (!OPERACIONES_HABILITADAS) {
+    return (
+      <>
+        <Titulo titulo="Operaciones" />
+        <Aviso>
+          Esta sección está inhabilitada por ahora: la demo es solo de consulta y exportación. Aquí se podrán capturar
+          calificaciones, bajas y reingresos con las reglas del reglamento y la bitácora de cambios.
+        </Aviso>
+      </>
+    );
+  }
   return (
     <>
       <Titulo
