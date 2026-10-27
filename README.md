@@ -10,6 +10,10 @@ sistema completo puede hacer con los datos migrados del sistema anterior.
 - **Reportes**: 36 reportes por tema (procedimientos almacenados y consultas de solo lectura), entre ellos el
   formato 911 y las relaciones para la SEP (inscripción, bajas, egresados, titulados, eficiencia terminal, datos
   faltantes). Cada uno con su explicación, filtros con menús de búsqueda y vista sugerida.
+- **Modelo de datos**: diagrama interactivo de las tablas y sus relaciones (leído en vivo de la base: columnas,
+  llaves y conteos), con la ficha de cada tabla (qué guarda, por qué existe, de dónde vienen sus datos, columnas
+  explicadas), sus registros y la procedencia de cada archivo del sistema anterior (`migracion.fuente`). Las
+  explicaciones están en `lib/modelo.ts`.
 - **Consola SQL**: consultas libres en una transacción de solo lectura (una instrucción, 15 s), con ejemplos.
 - **Guía**: cómo usar cada menú, agrupar, graficar y exportar, y un glosario.
 - **Operaciones**: inhabilitadas por ahora (`lib/config.ts`); la demo es solo de consulta y exportación.
