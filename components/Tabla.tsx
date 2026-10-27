@@ -45,7 +45,8 @@ export function Tabla({
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs text-muted">
         <span>
-          {filas.length.toLocaleString("es-MX")} filas{truncado ? " (se muestran las primeras 1,000)" : ""}
+          {filas.length.toLocaleString("es-MX")} {filas.length === 1 ? "fila" : "filas"}
+          {truncado ? " (se muestran las primeras 1,000)" : ""}
         </span>
         <button onClick={descargar} className="rounded-md border border-border bg-card px-3 py-1 font-medium text-brand hover:bg-brand-soft">
           Descargar CSV
