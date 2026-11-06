@@ -41,6 +41,7 @@ export const GRUPOS = [
   "Becas, servicio y titulación",
   "SEP · Formato 911",
   "SEP · Relaciones y control escolar",
+  "SEP · Layout IPES (PUI y Anexo 8)",
   "Evaluación docente",
 ] as const;
 
@@ -526,7 +527,7 @@ ORDER BY ca.clave, m.semestre, a.apellido_1, a.apellido_2, a.nombre`,
     id: "relacion-bajas", grupo: "SEP · Relaciones y control escolar",
     titulo: "Alumnos que no se reinscribieron",
     descripcion: "Alumnos cuyo último ciclo fue el elegido, sin haber egresado: bajas y deserción.",
-    ayuda: "El sistema anterior no registra las bajas de los alumnos: aquí aparecen quienes cursaron este ciclo y ya no se inscribieron al siguiente, sin haber terminado el plan. Sirve para el reporte de bajas y para el seguimiento de deserción. El ciclo más reciente no aplica (todavía no hay ciclo siguiente).",
+    ayuda: "Muchos alumnos dejan de inscribirse sin tramitar una baja: aquí aparecen quienes cursaron este ciclo y ya no se inscribieron al siguiente, sin haber terminado el plan. Sirve para el reporte de bajas y para el seguimiento de deserción. El ciclo más reciente no aplica (todavía no hay ciclo siguiente).",
     params: [{ ...ciclo, requerido: true, ejemplo: "24-1" }, carrera],
     sql: `WITH ${TRAYECTORIA}
 SELECT ca.clave AS carrera, a.numerocuenta, fn_nombre_completo(a.nombre, a.apellido_1, a.apellido_2) AS alumno, a.sexo,
@@ -641,6 +642,43 @@ ORDER BY ca.clave`,
     descripcion: "Alumnos y materias con calificación, con la clave SEP de cada materia.",
     ayuda: "La columna «clave_sep» está vacía hasta que UNIMES envíe las claves SEP de las materias. Exporta a Excel para entregarlo.",
     params: [carrera, ciclo],
+  },
+
+  // ------------------------------------------------------------------ SEP · Layout IPES (migraciones 0017-0018)
+  {
+    id: "layout-ipes", funcion: "sp_layout_ipes", grupo: "SEP · Layout IPES (PUI y Anexo 8)",
+    titulo: "Layout IPES del ciclo (48 campos)",
+    descripcion: "El archivo que pide la SEP-DGAIR para la PUI y el Anexo 8: una fila por alumno del ciclo con los 48 campos en el orden de la plantilla.",
+    ayuda: "Exporta a Excel: todas las celdas van como texto (ceros a la izquierda y fechas DD/MM/AAAA), como pide el diccionario de datos. Flujo I = primer ciclo del alumno, R = reinscripción, B = baja registrada en el ciclo. Las celdas vacías son datos que todavía no existen (CCT, créditos del plan, procedencia, lengua materna, fecha de inicio del ciclo…); el reporte «Prevalidación» dice cuáles faltan por alumno. Créditos acumulados = créditos de las materias acreditadas antes del ciclo.",
+    params: [{ ...ciclo, requerido: true, ejemplo: "24-2" }, carrera],
+  },
+  {
+    id: "layout-ipes-errores", funcion: "sp_layout_ipes_errores", grupo: "SEP · Layout IPES (PUI y Anexo 8)",
+    titulo: "Prevalidación del Layout IPES",
+    descripcion: "Qué le falta o qué está mal en cada alumno, con las reglas del diccionario de la SEP, antes de subir el archivo al SIIE.",
+    ayuda: "Una fila por alumno y problema. Agrupa por «campo» para ver qué dato falta a más alumnos (los que faltan a todos son datos del plantel o de la carrera: se capturan una sola vez). Revisa también la CURP contra la fecha de nacimiento y el sexo, el flujo contra el semestre y los créditos contra el plan. No consulta RENAPO ni el catálogo de CCT: eso lo hace el prevalidador del SIIE.",
+    params: [{ ...ciclo, requerido: true, ejemplo: "24-2" }, carrera],
+    agruparSugerido: ["campo"],
+    vista: { tipo: "barras", x: "campo", y: "registros" },
+  },
+  {
+    id: "bajas-programa", grupo: "SEP · Layout IPES (PUI y Anexo 8)",
+    titulo: "Bajas del programa",
+    descripcion: "Bajas temporales y definitivas registradas, con fecha, ciclo y motivo (campos 47 y 48 del layout).",
+    ayuda: "Las bajas del sistema anterior (campos fechabaja y tipobaja del expediente) no traen motivo y su ciclo se dedujo de la fecha. Deja el ciclo vacío para ver todas.",
+    params: [ciclo, carrera],
+    sql: `SELECT c.clave AS ciclo, ca.clave AS carrera, a.numerocuenta,
+       fn_nombre_completo(a.nombre, a.apellido_1, a.apellido_2) AS alumno, b.fecha_baja,
+       CASE b.tipo_baja WHEN 1 THEN 'Temporal' WHEN 2 THEN 'Definitiva' END AS tipo_baja,
+       mb.nombre AS motivo_baja, b.observaciones
+FROM alumno_baja b
+JOIN alumnos a ON a.id = b.alumno_id
+JOIN carreras ca ON ca.id = b.carrera_id
+LEFT JOIN ciclos_escolares c ON c.id = b.ciclo_id
+LEFT JOIN cat_motivo_baja mb ON mb.clave = b.motivo_baja
+WHERE ($1::text IS NULL OR c.clave = $1) AND ($2::text IS NULL OR ca.clave = $2)
+ORDER BY b.fecha_baja DESC, alumno`,
+    agruparSugerido: ["tipo_baja"],
   },
 
   // ------------------------------------------------------------------ Evaluación docente

@@ -15,7 +15,7 @@ export default function Inicio() {
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <Acceso href="/tablero" titulo="Tablero para rectoría" texto="Matrícula, reprobación, eficiencia terminal y deserción por generación." />
         <Acceso href="/alumnos" titulo="Buscar un alumno" texto="Por nombre o matrícula: ficha, promedios y kárdex completo." />
-        <Acceso href="/reportes" titulo="Reportes listos" texto="Formato 911 y relaciones para la SEP, becas, reprobación, titulación. Con Excel." />
+        <Acceso href="/reportes" titulo="Reportes listos" texto="Formato 911, Layout IPES y relaciones para la SEP, becas, reprobación, titulación. Con Excel." />
         <Acceso href="/modelo" titulo="Modelo de datos" texto="Las tablas de la base, cómo se relacionan y de qué archivo del sistema anterior salió cada dato." />
         <Acceso href="/consola" titulo="Consulta propia" texto="Escribe SQL o carga un ejemplo; agrupa y exporta el resultado." />
         <Acceso href="/guia" titulo="¿Primera vez?" texto="Guía rápida: qué hay en cada menú y cómo exportar." />

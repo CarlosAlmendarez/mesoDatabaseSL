@@ -1,7 +1,7 @@
 // Explicación del modelo de datos para el apartado «Modelo de datos». La estructura (columnas, llaves,
 // relaciones y conteos) se lee en vivo de la base; aquí solo va lo que la base no sabe: para qué sirve
 // cada tabla, por qué existe y de qué parte del sistema anterior salieron sus datos.
-// Fuentes: db/mapeo_fase2.md, las migraciones 0001–0016 y las decisiones de las reuniones con UNIMES.
+// Fuentes: db/mapeo_fase2.md, las migraciones 0001–0018 y las decisiones de las reuniones con UNIMES.
 
 import { SERIES } from "./paleta";
 
@@ -15,6 +15,7 @@ export const AREAS: Area[] = [
   { id: "docentes", nombre: "Docentes", color: SERIES[4], descripcion: "Catedráticos, su antigüedad y sus asistencias." },
   { id: "egreso", nombre: "Egreso y vinculación", color: SERIES[5], descripcion: "Titulación, prácticas, servicio social, empresas y revalidaciones." },
   { id: "evaluacion", nombre: "Evaluación docente", color: SERIES[6], descripcion: "Cuestionarios con los que los alumnos califican a sus docentes (nuevo)." },
+  { id: "sep", nombre: "Catálogos SEP (Layout IPES)", color: "#3f7f74", descripcion: "Claves oficiales de la SEP-DGAIR para el Layout IPES (PUI + Anexo 8): países, entidades, lenguas, niveles, bajas… (nuevo)." },
   { id: "catalogos", nombre: "Catálogos y parámetros", color: "#7a828e", descripcion: "Listas cerradas de valores y reglas del reglamento editables." },
 ];
 
@@ -55,8 +56,24 @@ export const TABLAS: Record<string, InfoTabla> = {
       activo: "Se derivó de la carpeta donde estaba el expediente: egresados y bajas → no activo.",
       titulado: "Campo «Titulado» del expediente (SI → sí).",
       habla_lengua_indigena: "Nuevo, para la estadística de la SEP. El sistema anterior no lo tenía.",
-      lengua_indigena_id: "Nuevo, para la estadística de la SEP. El catálogo de lenguas lo enviará UNIMES.",
-      discapacidad_id: "Nuevo, para la estadística de la SEP. El sistema anterior no lo tenía.",
+      lengua_indigena_id: "Obsoleta desde el Layout IPES: se usan «lengua materna» y «segunda lengua» con el catálogo INALI.",
+      discapacidad_id: "Nuevo, para la estadística de la SEP y el Layout IPES (campo 23). El sistema anterior no lo tenía.",
+      segmento_raiz: "Layout IPES campo 8: los primeros 16 caracteres de la CURP. Solo se captura para quien no tiene CURP (extranjeros).",
+      correo_institucional: "Layout IPES campo 10. Nuevo.",
+      nacionalidad_sep: "Layout IPES campo 13: 1 mexicano, 2 extranjero. Se llenó desde el texto MEXICANA/EXTRANJERA del sistema anterior.",
+      pais_nacimiento: "Layout IPES campo 14 (clave de país). Se llenó desde la CURP cuando el alumno la tiene.",
+      entidad_nacimiento: "Layout IPES campo 15. Se llenó desde la CURP (posiciones 12-13).",
+      pais_residencia: "Layout IPES campo 16.",
+      entidad_residencia: "Layout IPES campo 17. Se llenó desde el estado del domicilio (SAN LUIS POTOSI, SLP, S.L.P.…).",
+      pais_procedencia: "Layout IPES campo 18: dónde vivió el año anterior a inscribirse. No existía: hay que capturarlo.",
+      entidad_procedencia: "Layout IPES campo 19. No existía: hay que capturarlo.",
+      lengua_materna: "Layout IPES campo 20 (catálogo INALI; 0081 = español). No existía: hay que capturarlo.",
+      segunda_lengua: "Layout IPES campo 21. Debe ser distinta de la lengua materna.",
+      necesidad_educativa: "Layout IPES campo 22: 00 no aplica, 01 discapacidad, 02 aptitud sobresaliente. Si está vacío el layout pone 00.",
+      aptitud_sobresaliente: "Layout IPES campo 24. Solo con necesidad educativa 02.",
+      antecedente_academico: "Layout IPES campo 42. Se marcó Sí cuando el alumno entregó el certificado de preparatoria.",
+      tipo_antecedente: "Layout IPES campo 43. 3 = certificado de bachillerato; 11-18 = revalidación o equivalencia (ingreso a un semestre avanzado).",
+      origen_estudios_precedentes: "Layout IPES campo 46: 02 nacionales, 03 extranjeros.",
     },
   },
   alumno_tutor: {
@@ -110,6 +127,13 @@ export const TABLAS: Record<string, InfoTabla> = {
       carrera_base_id: "Plan anterior o equivalente de la misma licenciatura (liga a esta misma tabla).",
       version_plan: "NUEVO o VIEJO según el catálogo oficial.",
       num_semestres: "Duración del plan; se usa para saber si un alumno llegó al último semestre.",
+      clave_dgp: "Layout IPES campo 27: clave de la carrera ante la DGP (opcional).",
+      creditos_totales: "Layout IPES campo 28: créditos del plan. Lo da UNIMES; no se suma de las materias porque el plan incluye optativas.",
+      nivel_educativo: "Layout IPES campo 30 (81 = licenciatura).",
+      modalidad_educativa: "Layout IPES campo 31 (1 escolarizada…). Por confirmar con UNIMES.",
+      opcion_educativa: "Layout IPES campo 32 (1 presencial…). Por confirmar con UNIMES.",
+      tipo_rvoe: "Layout IPES campo 35, nuevo en 2026: 1 RVOE federal, 2 estatal. Por confirmar con UNIMES.",
+      duracion_periodo: "Layout IPES campo 40 (1 = semestral).",
     },
   },
   materias: {
@@ -341,17 +365,44 @@ export const TABLAS: Record<string, InfoTabla> = {
   cat_discapacidad: {
     area: "catalogos",
     titulo: "Discapacidades",
-    que: "Tipos de discapacidad para la estadística de la SEP (por capturar).",
+    que: "Los 15 tipos de discapacidad, trastornos y dificultades de la SEP (Layout IPES campo 23).",
     porque: "Lista cerrada compartida por alumnos y docentes.",
-    origen: SIN_ORIGEN,
+    origen: "Diccionario de datos del Layout IPES de la SEP-DGAIR (versión 24-sep-2026).",
   },
   cat_lengua_indigena: {
     area: "catalogos",
-    titulo: "Lenguas indígenas",
-    que: "Lenguas indígenas para la estadística de la SEP.",
-    porque: "Lista cerrada para el dato del alumno.",
-    origen: "Pendiente: UNIMES enviará el catálogo que usa para su estadística (14-oct).",
+    titulo: "Lenguas indígenas (obsoleto)",
+    que: "Catálogo que esperaba la lista de lenguas. Lo sustituye «Lenguas (INALI)».",
+    porque: "Se conserva para no romper la estadística existente.",
+    origen: "Sustituido por el catálogo INALI del Layout IPES (6-nov-2026).",
   },
+
+  // ── Layout IPES (SEP-DGAIR) ───────────────────────────────────────────────
+  plantel: {
+    area: "sep",
+    titulo: "Plantel",
+    que: "Cada plantel con su clave de centro de trabajo (CCT) y su clave de institución ante la DGP.",
+    porque: "El CCT es obligatorio en el Layout IPES (campo 26) y cada plantel (SLP, Oaxaca, San Juan) tiene el suyo.",
+    origen: "Nuevo. El CCT lo proporcionará UNIMES.",
+  },
+  alumno_baja: {
+    area: "alumnos",
+    titulo: "Bajas del programa",
+    que: "Baja temporal o definitiva del alumno en su carrera, con fecha, ciclo y motivo (catálogo de 23 motivos de la SEP).",
+    porque: "Es distinta de la baja de una materia (que está en la inscripción). El Layout IPES la reporta con flujo B (campos 47-48).",
+    origen: "Campos fechabaja y tipobaja de «datosgenerales» (2,594 bajas). El sistema anterior no guardaba el motivo; el ciclo se dedujo de la fecha.",
+  },
+  cat_pais: { area: "sep", titulo: "Países", que: "252 países con su clave numérica ISO (484 = México).", porque: "Campos 14, 16 y 18 del Layout IPES.", origen: "Diccionario de datos del Layout IPES." },
+  cat_entidad: { area: "sep", titulo: "Entidades", que: "Estados de México (01-32), EUA (33-82), Canadá (83-95) y 96 = foráneo.", porque: "Campos 15, 17 y 19 del Layout IPES; cada entidad debe corresponder al país.", origen: "Diccionario de datos del Layout IPES." },
+  cat_entidad_renapo: { area: "sep", titulo: "Entidades de la CURP", que: "Clave de dos letras de la CURP (SP = San Luis Potosí) y su entidad.", porque: "Sirve para obtener la entidad de nacimiento desde la CURP.", origen: "Diccionario de datos del Layout IPES." },
+  cat_lengua: { area: "sep", titulo: "Lenguas (INALI)", que: "162 idiomas y lenguas nacionales del catálogo INALI (0081 = español).", porque: "Campos 20 y 21 del Layout IPES. Sustituye al catálogo de lenguas indígenas.", origen: "Diccionario de datos del Layout IPES." },
+  cat_aptitud_sobresaliente: { area: "sep", titulo: "Aptitudes sobresalientes", que: "Tipos de aptitud sobresaliente de la SEP.", porque: "Campo 24 del Layout IPES.", origen: "Diccionario de datos del Layout IPES." },
+  cat_nivel_educativo: { area: "sep", titulo: "Niveles educativos", que: "Licenciatura, maestría, especialidad… con los créditos mínimos del Acuerdo 17/11/17.", porque: "Campo 30 del Layout IPES; los créditos mínimos validan el campo 28.", origen: "Diccionario de datos del Layout IPES." },
+  cat_modalidad_educativa: { area: "sep", titulo: "Modalidades educativas", que: "Escolarizada, no escolarizada, mixta y dual.", porque: "Campo 31 del Layout IPES.", origen: "Diccionario de datos del Layout IPES." },
+  cat_opcion_educativa: { area: "sep", titulo: "Opciones educativas", que: "Presencial, en línea, abierta, certificación por examen y dual, cada una ligada a su modalidad.", porque: "Campo 32 del Layout IPES.", origen: "Diccionario de datos del Layout IPES." },
+  cat_duracion_periodo: { area: "sep", titulo: "Duración del periodo", que: "Semestral, cuatrimestral, trimestral… con cuántos periodos hacen un año.", porque: "Campo 40 del Layout IPES; sirve para calcular el grado (año) desde el semestre.", origen: "Diccionario de datos del Layout IPES." },
+  cat_tipo_antecedente: { area: "sep", titulo: "Tipos de antecedente académico", que: "Certificado de bachillerato, títulos, revalidaciones y equivalencias (claves 1-18).", porque: "Campo 43 del Layout IPES; las claves 11-18 permiten inscribir en un semestre avanzado.", origen: "Diccionario de datos del Layout IPES." },
+  cat_motivo_baja: { area: "sep", titulo: "Motivos de baja", que: "Los 23 motivos de baja de la SEP (académicos, económicos, de salud…).", porque: "Campo 48 del Layout IPES.", origen: "Diccionario de datos del Layout IPES." },
   parametro: {
     area: "catalogos",
     titulo: "Parámetros del reglamento",
@@ -374,11 +425,13 @@ export const COLUMNAS_COMUNES: Record<string, string> = {
 /** Columnas del diagrama, de izquierda a derecha (las tablas se apilan de arriba abajo). */
 export const DISPOSICION: string[][] = [
   ["titulacion", "encuesta_egresado", "empresa", "practica_servicio", "revalidacion", "materias_revalidadas"],
-  ["alumno_tutor", "alumno_documento", "alumnos", "becas", "colegiatura", "colegiatura_parcialidad"],
+  ["alumno_tutor", "alumno_documento", "alumnos", "alumno_baja", "becas", "colegiatura", "colegiatura_parcialidad"],
   ["inscripcion_materia", "intento_calificacion", "evaluacion_respuesta", "evaluacion_respuesta_detalle"],
   ["materias", "materia_seriacion", "oferta_grupo", "oferta_grupo_carrera", "horario_clase", "evento_examen"],
-  ["carreras", "ciclos_escolares", "docentes", "docente_antiguedad", "asistencia_catedratico", "evaluacion_cuestionario", "evaluacion_pregunta"],
+  ["plantel", "carreras", "ciclos_escolares", "docentes", "docente_antiguedad", "asistencia_catedratico", "evaluacion_cuestionario", "evaluacion_pregunta"],
   ["cat_turno", "cat_tipo_intento", "cat_forma_aprobacion", "cat_tipo_asistencia", "cat_tipo_grado", "cat_discapacidad", "cat_lengua_indigena", "parametro"],
+  ["cat_pais", "cat_entidad", "cat_entidad_renapo", "cat_lengua", "cat_aptitud_sobresaliente", "cat_nivel_educativo",
+   "cat_modalidad_educativa", "cat_opcion_educativa", "cat_duracion_periodo", "cat_tipo_antecedente", "cat_motivo_baja"],
 ];
 
 /** Tipo de Postgres en palabras. */

@@ -5,7 +5,7 @@ const MENUS = [
   { href: "/", titulo: "Inicio", texto: "Cifras generales, alumnos por ciclo y por carrera. Clic en una carrera para ver a sus alumnos activos." },
   { href: "/tablero", titulo: "Tablero", texto: "Indicadores para rectoría: matrícula, nuevo ingreso, reprobación, eficiencia terminal y deserción por generación. Filtra por licenciatura e imprime o guarda en PDF." },
   { href: "/alumnos", titulo: "Alumnos", texto: "Busca por nombre, apellido o matrícula, o filtra por carrera. La matrícula abre la ficha con promedios y kárdex." },
-  { href: "/reportes", titulo: "Reportes", texto: "Consultas listas por tema, incluidos el formato 911 y las relaciones para la SEP (inscripción, bajas, egresados, titulados). Cada una explica cómo usarla." },
+  { href: "/reportes", titulo: "Reportes", texto: "Consultas listas por tema, incluidos el formato 911, el Layout IPES (PUI y Anexo 8) y las relaciones para la SEP (inscripción, bajas, egresados, titulados). Cada una explica cómo usarla." },
   { href: "/modelo", titulo: "Modelo de datos", texto: "El mapa de la base: cada caja es una tabla y cada línea una relación. Arrastra para moverte, usa la rueda o +/− para acercar y toca una tabla para ver qué guarda, por qué existe, de dónde salieron sus datos y sus registros. Abajo está la lista de archivos del sistema anterior y a qué tablas fueron a dar." },
   { href: "/consola", titulo: "Consola SQL", texto: "Para quien sabe SQL: escribe una consulta o carga un ejemplo. Solo lectura." },
 ];
@@ -28,6 +28,7 @@ const GLOSARIO: [string, string][] = [
   ["Generación", "Año en que el alumno empezó su primer ciclo. 24-1 empieza en agosto de 2023, así que quien entró en 24-1 es de la generación 2023."],
   ["Eficiencia terminal", "Egresados de una generación entre los que ingresaron en ella. Egresado: titulado, o cursó el último semestre del plan y ya no se inscribió (el sistema anterior no registra el egreso)."],
   ["Formato 911", "Cuestionario estadístico de la SEP al inicio y fin de cursos: matrícula, primer ingreso, edad, egresados y docentes, todo por sexo. Está en Reportes → SEP · Formato 911."],
+  ["Layout IPES", "Archivo de 48 columnas que la SEP-DGAIR pide cada ciclo para la Plataforma Única de Identidad (PUI) y el Anexo 8, seis semanas después de cerrar inscripciones. Flujo I = inscripción, R = reinscripción, B = baja. Está en Reportes → SEP · Layout IPES, con su prevalidación."],
   ["PK y FK", "PK (llave primaria) es la columna que identifica a cada registro de una tabla. FK (llave foránea) es una columna que guarda la PK de otra tabla: así se relacionan, por ejemplo cada calificación apunta al alumno y a la materia. Se ven en Modelo de datos."],
   ["Procedimiento almacenado", "Consulta guardada dentro de la base. Cualquier sistema la llama con un solo comando, por ejemplo SELECT * FROM sp_historial_academico('21102010')."],
 ];

@@ -75,7 +75,8 @@ export async function GET(request: Request) {
       header: etiqueta(c),
       key: c,
       width: Math.min(Math.max(largo + 2, 8), 60),
-      style: tipo === "fecha" ? { numFmt: "dd/mm/yyyy" } : tipo === "numero" ? { numFmt: formato } : {},
+      // Texto con formato «@»: Excel no convierte matrículas, claves ni CURP en números (ceros a la izquierda).
+      style: tipo === "fecha" ? { numFmt: "dd/mm/yyyy" } : tipo === "numero" ? { numFmt: formato } : tipo === "texto" ? { numFmt: "@" } : {},
     };
   });
   for (const f of r.filas) {
