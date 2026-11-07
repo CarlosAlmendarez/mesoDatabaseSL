@@ -124,6 +124,19 @@ ORDER BY porcentaje_avance DESC, alumno`,
     agruparSugerido: ["carrera", "sexo"],
   },
 
+  {
+    id: "extracurriculares", funcion: "sp_extracurriculares", grupo: "Alumnos e historial",
+    titulo: "Materias extracurriculares",
+    descripcion: "Cursos, talleres y materias especiales fuera del plan autorizado, por alumno, ciclo o materia.",
+    ayuda: "Se registran aparte del historial oficial (lo pidió Control Escolar el 14-oct): no cuentan en el kárdex, los promedios, los créditos ni los reportes de la SEP. Todavía no hay registros: se capturan con sp_alta_extracurricular y sp_registrar_extracurricular.",
+    params: [
+      { nombre: "p_numerocuenta", etiqueta: "Matrícula", tipo: "texto" },
+      ciclo,
+      { nombre: "p_clave", etiqueta: "Clave de la extracurricular", tipo: "texto" },
+    ],
+    agruparSugerido: ["extracurricular"],
+  },
+
   // ------------------------------------------------------------------ Calificaciones y desempeño
   {
     id: "estad-materias", grupo: "Calificaciones y desempeño",
@@ -251,6 +264,37 @@ WHERE ca.clave = $1 AND m.activo
 ORDER BY m.semestre, m.clave`,
     agruparSugerido: ["semestre"],
     vista: { tipo: "barras", x: "semestre", y: "creditos" },
+  },
+  {
+    id: "equivalencia-sugerida", funcion: "sp_equivalencia_sugerida", grupo: "Planes de estudio",
+    titulo: "Propuesta de equivalencia (cambio de plan)",
+    descripcion: "Para un alumno que pasa a otro plan: sus materias acreditadas y la materia del plan nuevo que les corresponde.",
+    ayuda: "Escribe la matrícula y elige el plan destino (por ejemplo, de Derecho 05 al 55). «Misma clave y nombre» y «mismo nombre» son seguras; «misma clave, otro nombre» hay que revisarla (la clave sola no basta: en 05 la 0104 es Teoría económica I y en 55 es Teoría política). Es solo una propuesta: la equivalencia se registra con sp_registrar_equivalencia cuando Control Escolar la confirma.",
+    params: [
+      { nombre: "p_numerocuenta", etiqueta: "Matrícula", tipo: "texto", requerido: true, ejemplo: "07105011" },
+      { nombre: "p_carrera_destino", etiqueta: "Plan destino", tipo: "carrera", requerido: true, ejemplo: "55" },
+    ],
+    agruparSugerido: ["criterio"],
+  },
+  {
+    id: "equivalencias", grupo: "Planes de estudio",
+    titulo: "Equivalencias y revalidaciones registradas",
+    descripcion: "Equivalencias internas (cambio de plan) y revalidaciones externas, con folio, carreras, materias y créditos.",
+    ayuda: "Interna = cambio de plan dentro de UNIMES; externa = estudios de otra institución. Lo migrado del sistema anterior no trae carreras ni materias de la equivalencia.",
+    params: [carrera],
+    sql: `SELECT r.tipo, a.numerocuenta, fn_nombre_completo(a.nombre, a.apellido_1, a.apellido_2) AS alumno,
+       co.clave AS carrera_origen, coalesce(cd.clave, ca.clave) AS carrera_destino, r.institucion_origen, r.folio,
+       r.fecha_revalidacion, count(mr.id) AS materias, sum(mr.creditos) AS creditos
+FROM revalidacion r
+JOIN alumnos a ON a.id = r.alumno_id
+LEFT JOIN carreras ca ON ca.id = a.carrera_id
+LEFT JOIN carreras co ON co.id = r.carrera_origen_id
+LEFT JOIN carreras cd ON cd.id = r.carrera_destino_id
+LEFT JOIN materias_revalidadas mr ON mr.revalidacion_id = r.id
+WHERE ($1::text IS NULL OR coalesce(cd.clave, ca.clave) = $1)
+GROUP BY r.id, a.id, co.clave, cd.clave, ca.clave
+ORDER BY r.fecha_revalidacion DESC NULLS LAST, alumno`,
+    agruparSugerido: ["tipo"],
   },
   {
     id: "carreras", grupo: "Planes de estudio",
@@ -487,7 +531,7 @@ ORDER BY docente`,
     id: "estadistica", funcion: "sp_estadistica_alumnos", grupo: "SEP · Formato 911",
     titulo: "Alumnos por discapacidad y lengua indígena",
     descripcion: "Conteo y promedio por carrera, sexo, edad, discapacidad y lengua indígena.",
-    ayuda: "Cada fila es una combinación; agrupa por «sexo» o «rango_edad» y suma la columna «alumnos» para los totales que pide la SEP. Discapacidad y lengua indígena salen vacías hasta que se capturen en el sistema nuevo (el anterior no las registra).",
+    ayuda: "Cada fila es una combinación; agrupa por «sexo» o «rango_edad» y suma la columna «alumnos» para los totales que pide la SEP. Discapacidad y lengua salen «sin dato» hasta que se capturen en el sistema nuevo (el anterior no las registra). La lengua indígena se toma de la lengua materna o la segunda lengua del Layout IPES (catálogo INALI).",
     params: [carrera, ciclo, { nombre: "p_solo_activos", etiqueta: "Solo activos", tipo: "booleano" }],
     agruparSugerido: ["sexo"],
   },
@@ -613,7 +657,7 @@ ORDER BY t.generacion`,
   {
     id: "datos-faltantes", grupo: "SEP · Relaciones y control escolar",
     titulo: "Datos faltantes para la SEP",
-    descripcion: "Por carrera: cuántos alumnos no tienen CURP, sexo, fecha de nacimiento o lengua indígena, y cuántas materias no tienen clave SEP.",
+    descripcion: "Por carrera: cuántos alumnos no tienen CURP, sexo, fecha de nacimiento o lengua materna, y cuántas materias no tienen clave SEP.",
     ayuda: "Muestra qué hay que completar antes de entregar los formatos. Sin ciclo cuenta a los alumnos activos; con ciclo, a los inscritos en él. La CURP es el dato más incompleto del sistema anterior.",
     params: [ciclo],
     sql: `WITH al AS (
@@ -626,7 +670,7 @@ SELECT ca.clave AS carrera, ca.nombre AS nombre_carrera, count(al.id) AS alumnos
        count(al.id) FILTER (WHERE al.curp IS NULL) AS sin_curp,
        count(al.id) FILTER (WHERE al.sexo IS NULL) AS sin_sexo,
        count(al.id) FILTER (WHERE al.fecha_nacimiento IS NULL) AS sin_fecha_nacimiento,
-       count(al.id) FILTER (WHERE al.habla_lengua_indigena IS NULL) AS sin_lengua_indigena,
+       count(al.id) FILTER (WHERE fn_lengua_indigena(al.id) = 'sin dato') AS sin_lengua_materna,
        round(100.0 * count(al.id) FILTER (WHERE al.curp IS NOT NULL AND al.sexo IS NOT NULL AND al.fecha_nacimiento IS NOT NULL)
              / nullif(count(al.id), 0), 1) AS pct_completos,
        (SELECT count(*) FROM materias m WHERE m.carrera_id = ca.id AND m.activo AND m.clave_sep IS NULL) AS materias_sin_clave_sep

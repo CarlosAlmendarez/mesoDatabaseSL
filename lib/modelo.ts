@@ -1,7 +1,7 @@
 // Explicación del modelo de datos para el apartado «Modelo de datos». La estructura (columnas, llaves,
 // relaciones y conteos) se lee en vivo de la base; aquí solo va lo que la base no sabe: para qué sirve
 // cada tabla, por qué existe y de qué parte del sistema anterior salieron sus datos.
-// Fuentes: db/mapeo_fase2.md, las migraciones 0001–0018 y las decisiones de las reuniones con UNIMES.
+// Fuentes: db/mapeo_fase2.md, las migraciones 0001–0020 y las decisiones de las reuniones con UNIMES.
 
 import { SERIES } from "./paleta";
 
@@ -287,6 +287,11 @@ export const TABLAS: Record<string, InfoTabla> = {
     que: "Oficio, fecha e institución de origen de los alumnos que revalidaron estudios.",
     porque: "Solo aplica a algunos alumnos; tenerla aparte evita columnas vacías en el expediente.",
     origen: "Campos «Oficio de Revalidación» y «Fecha de Revalidación» de «datosgenerales» (carpeta REVALID).",
+    columnas: {
+      tipo: "interno = cambio de plan dentro de UNIMES (plan viejo → nuevo); externo = viene de otra institución.",
+      carrera_origen_id: "Nuevo (0020): plan del que viene el alumno en una equivalencia interna.",
+      carrera_destino_id: "Nuevo (0020): plan al que se le acreditan las materias.",
+    },
   },
   materias_revalidadas: {
     area: "egreso",
@@ -377,6 +382,21 @@ export const TABLAS: Record<string, InfoTabla> = {
     origen: "Sustituido por el catálogo INALI del Layout IPES (6-nov-2026).",
   },
 
+  cat_extracurricular: {
+    area: "catalogos",
+    titulo: "Materias extracurriculares",
+    que: "Cursos, talleres, idiomas y materias especiales que se ofrecen fuera del plan autorizado.",
+    porque: "Control Escolar pidió registrarlas aparte del historial oficial (14-oct).",
+    origen: SIN_ORIGEN,
+  },
+  alumno_extracurricular: {
+    area: "alumnos",
+    titulo: "Extracurriculares del alumno",
+    que: "Qué extracurriculares cursó cada alumno, en qué ciclo y con qué resultado.",
+    porque: "Separada de las materias cursadas a propósito: no cuenta en kárdex, promedios, créditos ni reportes de la SEP.",
+    origen: SIN_ORIGEN,
+  },
+
   // ── Layout IPES (SEP-DGAIR) ───────────────────────────────────────────────
   plantel: {
     area: "sep",
@@ -425,11 +445,11 @@ export const COLUMNAS_COMUNES: Record<string, string> = {
 /** Columnas del diagrama, de izquierda a derecha (las tablas se apilan de arriba abajo). */
 export const DISPOSICION: string[][] = [
   ["titulacion", "encuesta_egresado", "empresa", "practica_servicio", "revalidacion", "materias_revalidadas"],
-  ["alumno_tutor", "alumno_documento", "alumnos", "alumno_baja", "becas", "colegiatura", "colegiatura_parcialidad"],
+  ["alumno_tutor", "alumno_documento", "alumnos", "alumno_baja", "alumno_extracurricular", "becas", "colegiatura", "colegiatura_parcialidad"],
   ["inscripcion_materia", "intento_calificacion", "evaluacion_respuesta", "evaluacion_respuesta_detalle"],
   ["materias", "materia_seriacion", "oferta_grupo", "oferta_grupo_carrera", "horario_clase", "evento_examen"],
   ["plantel", "carreras", "ciclos_escolares", "docentes", "docente_antiguedad", "asistencia_catedratico", "evaluacion_cuestionario", "evaluacion_pregunta"],
-  ["cat_turno", "cat_tipo_intento", "cat_forma_aprobacion", "cat_tipo_asistencia", "cat_tipo_grado", "cat_discapacidad", "cat_lengua_indigena", "parametro"],
+  ["cat_extracurricular", "cat_turno", "cat_tipo_intento", "cat_forma_aprobacion", "cat_tipo_asistencia", "cat_tipo_grado", "cat_discapacidad", "cat_lengua_indigena", "parametro"],
   ["cat_pais", "cat_entidad", "cat_entidad_renapo", "cat_lengua", "cat_aptitud_sobresaliente", "cat_nivel_educativo",
    "cat_modalidad_educativa", "cat_opcion_educativa", "cat_duracion_periodo", "cat_tipo_antecedente", "cat_motivo_baja"],
 ];
