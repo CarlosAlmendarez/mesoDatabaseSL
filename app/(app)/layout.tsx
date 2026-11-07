@@ -13,7 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Nav />
         </Suspense>
         <p className="mt-8 hidden px-3 text-xs leading-relaxed text-white/50 md:block">
-          Demo de la nueva base de datos: solo consulta y exportación. Nada de lo que hagas aquí modifica los datos.
+          Demo de la nueva base de datos: consulta y exportación. Solo «Actualizar datos» escribe en la base, con vista previa y opción de deshacer.
         </p>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>

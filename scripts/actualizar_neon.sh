@@ -3,8 +3,10 @@
 # y los datos que el ETL generó para ellas, sin volver a copiar toda la base.
 #
 #   1. db/migrate.sh contra Neon (aplica solo las migraciones que falten, p. ej. 0017-0018).
-#   2. db/etl/llenado_layout_ipes.sql (mismo llenado que corre el ETL en local; solo llena vacíos).
-#   3. Copia la tabla alumno_baja desde la base local (las bajas salen de los CSV del rescate).
+#   2. fn_llenar_layout_ipes() (mismo llenado que corre el ETL en local; solo llena vacíos).
+#   3. Copia desde la base local las tablas que el ETL llena desde los CSV del rescate y que Neon no puede
+#      calcular: alumno_baja (solo si en Neon está vacía) y carga.excluido (matrículas excluidas de la migración).
+#      Nunca se copian datos de la base local encima de lo que ya cambió en Neon (cargas desde la demo).
 #
 # Uso:  ./scripts/actualizar_neon.sh            (toma DATABASE_URL de .env.local)
 # La URL nunca se imprime ni se escribe en disco.
@@ -24,23 +26,28 @@ echo "1. Migraciones…"
 DATABASE_URL="$DIRECTA" bash "$DB_DIR/migrate.sh"
 
 echo "2. Llenado del Layout IPES…"
-{ echo "BEGIN;"
-  echo "SELECT set_config('app.usuario', 'migracion', true);"   # la carga no va a la bitácora
-  cat "$DB_DIR/etl/llenado_layout_ipes.sql"
-  echo "COMMIT;"
-} | psql_neon
+psql_neon -c "BEGIN; SELECT set_config('app.usuario', 'migracion', true); SELECT fn_llenar_layout_ipes(); COMMIT;"
 
-echo "3. Bajas del programa (alumno_baja) desde la base local…"
-{ echo "BEGIN;"
-  echo "SELECT set_config('app.usuario', 'migracion', true);"
-  echo "DELETE FROM alumno_baja;"
-  docker exec unimes-pg pg_dump -U postgres -d unimes --data-only --no-owner --no-privileges -t public.alumno_baja \
-    | grep -v -E "^SET |^SELECT pg_catalog.set_config\('search_path'"
-  echo "COMMIT;"
-} | psql_neon
+copiar() {   # copiar <tabla>: reemplaza la tabla de Neon con la de la base local
+  { echo "BEGIN;"
+    echo "SELECT set_config('app.usuario', 'migracion', true);"
+    echo "DELETE FROM $1;"
+    docker exec unimes-pg pg_dump -U postgres -d unimes --data-only --no-owner --no-privileges -t "$1"       | grep -v -E "^SET |^SELECT pg_catalog.set_config\('search_path'"
+    echo "COMMIT;"
+  } | psql_neon
+}
+
+echo "3. Tablas que solo calcula el ETL local…"
+if [[ "$(psql_neon -Atc 'SELECT count(*) FROM alumno_baja')" == "0" ]]; then
+  echo "   alumno_baja"; copiar public.alumno_baja
+else
+  echo "   alumno_baja: Neon ya tiene datos, no se toca"
+fi
+echo "   carga.excluido"; copiar carga.excluido
 
 echo "Verificando…"
 psql_neon -c "SELECT (SELECT string_agg(version, ', ' ORDER BY version) FROM schema_migrations WHERE version >= '0017') migraciones,
                      (SELECT count(*) FROM alumno_baja) bajas,
                      (SELECT count(entidad_residencia) FROM alumnos) con_residencia,
-                     (SELECT count(*) FROM sp_layout_ipes('24-2')) layout_24_2"
+                     (SELECT count(*) FROM sp_layout_ipes('24-2')) layout_24_2,
+                     (SELECT count(*) FROM carga.excluido) excluidos"

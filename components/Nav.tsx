@@ -12,6 +12,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   reportes: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
   consola: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9l3 3-3 3M13 15h4" /></>,
   guia: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.5" /></>,
+  actualizar: <><path d="M12 3v12M7 8l5-5 5 5" /><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /></>,
   salir: <><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l4-4-4-4M14 12H4" /></>,
 };
 
@@ -28,6 +29,7 @@ const ENLACES = [
   { href: "/tablero", texto: "Tablero", icono: "tablero", ayuda: "Indicadores para rectoría" },
   { href: "/alumnos", texto: "Alumnos", icono: "alumnos", ayuda: "Buscar y ver kárdex" },
   { href: "/reportes", texto: "Reportes", icono: "reportes", ayuda: "Consultas listas" },
+  { href: "/actualizacion", texto: "Actualizar datos", icono: "actualizar", ayuda: "Subir archivos del sistema anterior" },
   { href: "/modelo", texto: "Modelo de datos", icono: "modelo", ayuda: "Tablas y relaciones" },
   { href: "/consola", texto: "Consola SQL", icono: "consola", ayuda: "Consultas propias" },
   { href: "/guia", texto: "Guía", icono: "guia", ayuda: "Cómo usar la demo" },

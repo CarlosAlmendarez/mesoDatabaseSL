@@ -5,6 +5,7 @@ const MENUS = [
   { href: "/", titulo: "Inicio", texto: "Cifras generales, alumnos por ciclo y por carrera. Clic en una carrera para ver a sus alumnos activos." },
   { href: "/tablero", titulo: "Tablero", texto: "Indicadores para rectoría: matrícula, nuevo ingreso, reprobación, eficiencia terminal y deserción por generación. Filtra por licenciatura e imprime o guarda en PDF." },
   { href: "/alumnos", titulo: "Alumnos", texto: "Busca por nombre, apellido o matrícula, o filtra por carrera. La matrícula abre la ficha con promedios y kárdex." },
+  { href: "/actualizacion", titulo: "Actualizar datos", texto: "Sube la carpeta del sistema anterior: la base compara y muestra qué es nuevo (alumnos, materias cursadas, calificaciones, bajas, planes). Si todo está bien se aplica; cada cambio queda en la bitácora y la actualización se puede deshacer." },
   { href: "/reportes", titulo: "Reportes", texto: "Consultas listas por tema, incluidos el formato 911, el Layout IPES (PUI y Anexo 8) y las relaciones para la SEP (inscripción, bajas, egresados, titulados). Cada una explica cómo usarla." },
   { href: "/modelo", titulo: "Modelo de datos", texto: "El mapa de la base: cada caja es una tabla y cada línea una relación. Arrastra para moverte, usa la rueda o +/− para acercar y toca una tabla para ver qué guarda, por qué existe, de dónde salieron sus datos y sus registros. Abajo está la lista de archivos del sistema anterior y a qué tablas fueron a dar." },
   { href: "/consola", titulo: "Consola SQL", texto: "Para quien sabe SQL: escribe una consulta o carga un ejemplo. Solo lectura." },
@@ -29,6 +30,7 @@ const GLOSARIO: [string, string][] = [
   ["Eficiencia terminal", "Egresados de una generación entre los que ingresaron en ella. Egresado: titulado, o cursó el último semestre del plan y ya no se inscribió (el sistema anterior no registra el egreso)."],
   ["Formato 911", "Cuestionario estadístico de la SEP al inicio y fin de cursos: matrícula, primer ingreso, edad, egresados y docentes, todo por sexo. Está en Reportes → SEP · Formato 911."],
   ["Layout IPES", "Archivo de 48 columnas que la SEP-DGAIR pide cada ciclo para la Plataforma Única de Identidad (PUI) y el Anexo 8, seis semanas después de cerrar inscripciones. Flujo I = inscripción, R = reinscripción, B = baja. Está en Reportes → SEP · Layout IPES, con su prevalidación."],
+  ["Actualización (lote)", "Cada vez que se suben archivos del sistema anterior se crea un lote: primero se compara (vista previa, sin cambiar nada) y después se aplica o se descarta. «Por revisar» son casos que no se aplican solos: reactivar a un alumno, cambiarlo de carrera o calificaciones de una matrícula sin expediente."],
   ["PK y FK", "PK (llave primaria) es la columna que identifica a cada registro de una tabla. FK (llave foránea) es una columna que guarda la PK de otra tabla: así se relacionan, por ejemplo cada calificación apunta al alumno y a la materia. Se ven en Modelo de datos."],
   ["Procedimiento almacenado", "Consulta guardada dentro de la base. Cualquier sistema la llama con un solo comando, por ejemplo SELECT * FROM sp_historial_academico('21102010')."],
 ];
@@ -38,7 +40,7 @@ export default function Guia() {
     <div className="max-w-5xl space-y-10">
       <Titulo
         titulo="Guía rápida"
-        subtitulo="Esta demo muestra la nueva base de datos de Control Escolar con los datos migrados del sistema anterior. Todo es de consulta: nada de lo que hagas aquí cambia la información."
+        subtitulo="Esta demo muestra la nueva base de datos de Control Escolar con los datos migrados del sistema anterior. Todo es de consulta, salvo «Actualizar datos», que agrega a la base lo nuevo de los archivos del sistema anterior (con vista previa y opción de deshacer)."
       />
 
       <section>

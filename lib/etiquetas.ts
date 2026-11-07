@@ -183,6 +183,12 @@ const ETIQUETAS: Record<string, string> = {
   campo: "Campo",
   valor: "Valor",
   problema: "Problema",
+  // Actualización desde el sistema anterior
+  entidad: "Qué",
+  accion: "Acción",
+  valor_actual: "En la base",
+  valor_nuevo: "En el archivo",
+  detalle: "Detalle",
 };
 
 const FN: Record<string, string> = {

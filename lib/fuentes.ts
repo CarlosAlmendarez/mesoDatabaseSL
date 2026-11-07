@@ -11,7 +11,8 @@ export type Fuente =
   | { t: "sql"; q: string }
   | { t: "kardex"; cuenta: string }
   | { t: "promedios"; cuenta: string }
-  | { t: "alumnos"; q: string; carrera: string; activo: string };
+  | { t: "alumnos"; q: string; carrera: string; activo: string }
+  | { t: "carga"; lote: number; entidad: string; accion: string };
 
 export type FnMetrica = "suma" | "promedio" | "minimo" | "maximo" | "distintos" | "pct_si";
 export type Metrica = { fn: FnMetrica; col: string };
@@ -46,6 +47,15 @@ export function consultaBase(f: Fuente): { texto: string; params: unknown[]; env
       return { texto: "SELECT * FROM sp_historial_academico($1)", params: [f.cuenta], envolvible: true };
     case "promedios":
       return { texto: "SELECT * FROM sp_promedio_alumno($1)", params: [f.cuenta], envolvible: true };
+    case "carga":
+      return {
+        texto: `SELECT carrera, entidad, accion, clave, campo, valor_actual, valor_nuevo, detalle
+FROM carga.v_cambio
+WHERE lote_id = $1 AND ($2::text IS NULL OR entidad = $2) AND ($3::text IS NULL OR accion = $3)
+ORDER BY entidad, accion, clave, campo`,
+        params: [f.lote, f.entidad || null, f.accion || null],
+        envolvible: true,
+      };
     case "alumnos":
       return {
         texto: "SELECT * FROM sp_buscar_alumnos(p_texto => $1::text, p_carrera => $2::text, p_activo => $3::boolean)",

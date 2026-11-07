@@ -119,3 +119,33 @@ export async function simular<T>(
     await pool.end();
   }
 }
+
+/**
+ * Transacción de escritura real (módulo «Actualizar datos»). Hace COMMIT si `trabajo` termina bien y
+ * ROLLBACK si falla. `usuario` queda en la bitácora (app.usuario).
+ */
+export async function escribir<T>(
+  usuario: string,
+  trabajo: (q: (texto: string, params?: unknown[]) => Promise<Fila[]>) => Promise<T>,
+): Promise<T> {
+  const pool = new Pool({ connectionString: url() });
+  const cliente = await pool.connect();
+  try {
+    await cliente.query("BEGIN");
+    await cliente.query("SET LOCAL statement_timeout = '55s'");
+    await cliente.query("SELECT set_config('app.usuario', $1, true)", [usuario]);
+    const q = async (texto: string, params: unknown[] = []) => {
+      const r = await cliente.query(texto, params);
+      return normalizar(r.rows as Fila[], tiposDe(r.fields));
+    };
+    const resultado = await trabajo(q);
+    await cliente.query("COMMIT");
+    return resultado;
+  } catch (e) {
+    await cliente.query("ROLLBACK").catch(() => undefined);
+    throw e;
+  } finally {
+    cliente.release();
+    await pool.end();
+  }
+}
